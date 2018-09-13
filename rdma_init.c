@@ -7,24 +7,33 @@
 
 struct ib_client nvdimm_client;
 
+#define MAX_DEV 2
+/*???*/struct ib_device *m_devs[MAX_DEV];
+int devices;
 
 void add_device(struct ib_device* dev)
 {
-    printk(DRV "We got a new device!\n ");
+    int i;
+    m_devs[devices++] = dev;
+    if(devices > MAX_DEV)
+        --devices;
+    for(i=0; i<devices; ++i)
+        printk(DRV "We got a new device! The devece name is: %s\n",dev->name);
 }
 
 
 void remove_device(struct ib_device* dev, void *ctx)
 {
-    printk(DRV "remove_device\n ");
+    printk(DRV "remove_device\n");
 }
 
 
 static int __init client_module_init(void)
 {
-    nvdimm_client.name = "DISAG_MEM";
-    nvdimm_client.add = add_device;
-    nvdimm_client.remove = remove_device;
+    devices = 0;
+    nvdimm_client.name      = "DISAG_MEM";
+    nvdimm_client.add       = add_device;
+    nvdimm_client.remove    = remove_device;
 
     ib_register_client(&nvdimm_client);
 
