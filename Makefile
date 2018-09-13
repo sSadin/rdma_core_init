@@ -1,3 +1,5 @@
+.PHONY: load unload ipconfig33 ipconfig34 ipclean
+
 KSRC=/lib/modules/$(shell uname -r)/build
 KOBJ=/lib/modules/$(shell uname -r)/build
 
@@ -63,9 +65,9 @@ default:
 		modulesymfile=$(TEST_SRC)/Module.symvers \
 		modules
 
-install:
-	make -C $(KSRC) O=$(KOBJ) SUBDIRS=$(shell pwd) modules_install
-	depmod -a
+# install:
+# 	make -C $(KSRC) O=$(KOBJ) SUBDIRS=$(shell pwd) modules_install
+# 	depmod -a
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
@@ -80,3 +82,21 @@ load:
 unload:
 	rmmod -f $(OBJ).ko
 
+
+ipconfig33:
+	echo 'enp130s0f0 --> 192.168.1.33'
+	ifconfig enp130s0f0 inet 192.168.1.33
+	echo 'enp130s0f1 --> 192.168.1.35'
+	ifconfig enp130s0f1 inet 192.168.1.35
+
+ipconfig34:
+	echo 'enp130s0f0 --> 192.168.1.34'
+	ifconfig enp130s0f0 inet 192.168.1.34
+	echo 'enp130s0f1 --> 192.168.1.36'
+	ifconfig enp130s0f1 inet 192.168.1.36
+
+ipclean:
+	echo 'flush enp130s0f0'
+	ip addr flush enp130s0f0
+	echo 'flush enp130s0f1'
+	ip addr flush enp130s0f1
