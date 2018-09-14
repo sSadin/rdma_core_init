@@ -147,37 +147,36 @@ static void krping_run_server(struct cache_cb *cb)
 
 static int __init client_module_init(void)
 {
-struct cache_cb *cb;
-int ret = 0;
+    struct  cache_cb    *cb;
+            int         ret             = 0;
+                        devices         = 0;
+                        ib_cache.name   = "DISAG_MEM";
+                        ib_cache.add    = add_device;
+                        ib_cache.remove = remove_device;
+//Not need - we use CM
+//     ret = ib_register_client( &ib_cache );
+//     if (ret)
+//     {
+//         printk( KERN_ERR "Failed to register IB client\n" );
+//         return ret;
+//     }
 
-    devices = 0;
-    ib_cache.name      = "DISAG_MEM";
-    ib_cache.add       = add_device;
-    ib_cache.remove    = remove_device;
 
-    ret = ib_register_client( &ib_cache );
-    if (ret)
-    {
-        printk( KERN_ERR "Failed to register IB client\n" );
-        return ret;
+    cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+    if (!cb)
+        return -ENOMEM;
+    cb->cm_id = rdma_create_id(&init_net, krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
+    if ( IS_ERR( cb->cm_id ) ) {
+        ret = PTR_ERR( cb->cm_id );
+        printk( KERN_ERR DRV "rdma_create_id error %d\n", ret );
+        goto out;
     }
-
-
-cb = kzalloc(sizeof(*cb), GFP_KERNEL);
-if (!cb)
-    return -ENOMEM;
-cb->cm_id = rdma_create_id(&init_net, krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
-if ( IS_ERR( cb->cm_id ) ) {
-    ret = PTR_ERR( cb->cm_id );
-    printk( KERN_ERR DRV "rdma_create_id error %d\n", ret );
-    goto out;
-}
-else
-    printk( DRV "created cm_id %p\n", cb->cm_id );
-//if (cb->server)
-    krping_run_server(cb);
-//else
-//    krping_run_client(cb);
+    else
+        printk( DRV "created cm_id %p\n", cb->cm_id );
+    //if (cb->server)
+        krping_run_server(cb);
+    //else
+    //    krping_run_client(cb);
 
 
 
