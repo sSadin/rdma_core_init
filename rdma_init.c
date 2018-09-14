@@ -146,8 +146,8 @@ static int __init client_module_init(void)
 {
     struct  cache_cb    *cb;
             int         ret             = 0;
-                        devices         = 0;
-//Not need - we use CM
+// Not need - we use CM
+//                         devices         = 0;
 //                         ib_cache.name   = "DISAG_MEM";
 //                         ib_cache.add    = add_device;
 //                         ib_cache.remove = remove_device;
