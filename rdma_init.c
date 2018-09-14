@@ -12,6 +12,9 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define DEBUG_LOG if (debug) printk
 #define DRV KBUILD_MODNAME ": "
 
+struct ib_client ib_cache;
+
+struct ibv_context  *context;
 
 //------------------------------------------------------
 
@@ -65,22 +68,22 @@ return 0;
 }
 
 
-void add_device(struct ib_device* dev)
+void add_device( struct ib_device* dev )
 {
     int i;
-    m_devs[devices++] = dev;
-    if(devices > MAX_DEV)
+    m_devs[ devices++ ] = dev;
+    if( devices > MAX_DEV )
         --devices;
-    for(i=0; i<devices; ++i)
-        printk(DRV "We got a new device! The devece name is: %s\n",dev->name);
+    for( i = 0; i < devices; ++i )
+        printk( DRV "We got a new device! The devece name is: %s\n", m_devs[i]->name );
+
 }
 
 
-void remove_device(struct ib_device* dev, void *ctx)
+void remove_device( struct ib_device* dev, void *ctx )
 {
-    printk(DRV "remove_device\n");
+    printk( DRV "remove_device\n" );
 }
-
 
 
 static int krping_bind_server(struct cache_cb *cb)
@@ -121,7 +124,7 @@ static int krping_bind_server(struct cache_cb *cb)
 //         printk( KERN_ERR DRV "wait for CONNECT_REQUEST state %d\n", cb->state );
 //         return -1;
 //     }
-// 
+//
 //     if( !reg_supported( cb->child_cm_id->device ) )
 //         return -EINVAL;
 
@@ -148,11 +151,16 @@ struct cache_cb *cb;
 int ret = 0;
 
     devices = 0;
-    nvdimm_client.name      = "DISAG_MEM";
-    nvdimm_client.add       = add_device;
-    nvdimm_client.remove    = remove_device;
+    ib_cache.name      = "DISAG_MEM";
+    ib_cache.add       = add_device;
+    ib_cache.remove    = remove_device;
 
-    ib_register_client(&nvdimm_client);
+    ret = ib_register_client( &ib_cache );
+    if (ret)
+    {
+        printk( KERN_ERR "Failed to register IB client\n" );
+        return ret;
+    }
 
 
 cb = kzalloc(sizeof(*cb), GFP_KERNEL);
@@ -183,10 +191,10 @@ static void __exit client_module_exit( void )
 {
 //    sock_release(sock);
 //    ib_unregister_event_handler(&ieh);
-    ib_unregister_client(&nvdimm_client);
-    printk(DRV "Exit client module.\n");
+    ib_unregister_client( &ib_cache );
+    printk( DRV "Exit client module.\n" );
 }
 
 module_init( client_module_init );
 module_exit( client_module_exit );
-MODULE_LICENSE("GPL");
+MODULE_LICENSE( "GPL" );
