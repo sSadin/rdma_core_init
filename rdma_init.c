@@ -135,7 +135,6 @@ static void krping_run_server(struct cache_cb *cb)
 {
     int ret;
 
-    init_waitqueue_head(&cb->sem);
     ret = krping_bind_server(cb);
     if (ret)
        return;
@@ -162,6 +161,7 @@ static int __init client_module_init(void)
     cb = kzalloc(sizeof(*cb), GFP_KERNEL);
     if (!cb)
         return -ENOMEM;
+    init_waitqueue_head(&cb->sem);
     cb->cm_id = rdma_create_id(&init_net, krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
     if ( IS_ERR( cb->cm_id ) ) {
         ret = PTR_ERR( cb->cm_id );
@@ -169,16 +169,17 @@ static int __init client_module_init(void)
         goto out;
     }
     else
-        printk( DRV "created cm_id %p\n", cb->cm_id );
+        DEBUG_LOG("created cm_id %p\n", cb->cm_id );
     //if (cb->server)
         krping_run_server(cb);
     //else
     //    krping_run_client(cb);
 
 
+    DEBUG_LOG("RDMA destroy ID\n");
+    rdma_destroy_id(cb->cm_id);
+    DEBUG_LOG("RDMA ID destroed!\n");
 
-
-//    while(1);
 out:
     return ret;
 }
