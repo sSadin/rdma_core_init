@@ -12,17 +12,14 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define DEBUG_LOG if (debug) printk
 #define DRV KBUILD_MODNAME ": "
 
-struct ib_client ib_cache;
-
-struct ibv_context  *context;
-
 //------------------------------------------------------
 
+// struct ib_client ib_cache;
+// struct ibv_context  *context;
 
-struct ib_client nvdimm_client;
-#define MAX_DEV 2
-/*???*/struct ib_device *m_devs[MAX_DEV];
-int devices;
+// #define MAX_DEV 2
+// struct ib_device *m_devs[MAX_DEV];
+// int devices;
 
 
 //------------------------------------------------------
@@ -68,22 +65,22 @@ return 0;
 }
 
 
-void add_device( struct ib_device* dev )
-{
-    int i;
-    m_devs[ devices++ ] = dev;
-    if( devices > MAX_DEV )
-        --devices;
-    for( i = 0; i < devices; ++i )
-        printk( DRV "We got a new device! The devece name is: %s\n", m_devs[i]->name );
+// void add_device( struct ib_device* dev )
+// {
+//     int i;
+//     m_devs[ devices++ ] = dev;
+//     if( devices > MAX_DEV )
+//         --devices;
+//     for( i = 0; i < devices; ++i )
+//         printk( DRV "We got a new device! The devece name is: %s\n", m_devs[i]->name );
+// 
+// }
 
-}
 
-
-void remove_device( struct ib_device* dev, void *ctx )
-{
-    printk( DRV "remove_device\n" );
-}
+// void remove_device( struct ib_device* dev, void *ctx )
+// {
+//     printk( DRV "remove_device\n" );
+// }
 
 
 static int krping_bind_server(struct cache_cb *cb)
@@ -150,10 +147,10 @@ static int __init client_module_init(void)
     struct  cache_cb    *cb;
             int         ret             = 0;
                         devices         = 0;
-                        ib_cache.name   = "DISAG_MEM";
-                        ib_cache.add    = add_device;
-                        ib_cache.remove = remove_device;
 //Not need - we use CM
+//                         ib_cache.name   = "DISAG_MEM";
+//                         ib_cache.add    = add_device;
+//                         ib_cache.remove = remove_device;
 //     ret = ib_register_client( &ib_cache );
 //     if (ret)
 //     {
@@ -190,7 +187,7 @@ static void __exit client_module_exit( void )
 {
 //    sock_release(sock);
 //    ib_unregister_event_handler(&ieh);
-    ib_unregister_client( &ib_cache );
+//    ib_unregister_client( &ib_cache );
     printk( DRV "Exit client module.\n" );
 }
 
