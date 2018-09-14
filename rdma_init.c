@@ -6,6 +6,11 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
+
+#define PORT    4444
+#define IP      "192.168.1.33"
+
+
 static int debug = 1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
@@ -88,8 +93,8 @@ static int krping_bind_server(struct cache_cb *cb)
     struct  sockaddr_storage sin;
     struct  sockaddr_in      *sin4   = (struct sockaddr_in *)&sin;
             int              ret     = 0;
-            char             *ip_str = "192.168.1.34";
-            uint16_t         port    = 4444;
+            char             *ip_str = IP
+            uint16_t         port    = PORT;
 
     in4_pton( ip_str, -1, cb->addr, -1, NULL );
     cb->port = htons( port );
