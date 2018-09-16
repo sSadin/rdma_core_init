@@ -62,28 +62,28 @@ struct cache_cb {
     struct rdma_cm_id *child_cm_id; // connection on server side?
 };
 
-static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
-				   struct rdma_cm_event *event)
+static int krping_cma_event_handler( struct rdma_cm_id *cma_id,
+				   struct rdma_cm_event *event )
 {
             int         ret = 0;
     struct  cache_cb    *cb = cma_id->context;
 
-    DEBUG_LOG("cma_event type %d cma_id %p (%s)\n", event->event, cma_id,
-        (cma_id == cb->cm_id) ? "parent" : "child");
+    DEBUG_LOG( "cma_event type %d cma_id %p (%s)\n", event->event, cma_id,
+        ( cma_id == cb->cm_id ) ? "parent" : "child" );
 
-    switch (event->event) {
+    switch( event->event ) {
     case RDMA_CM_EVENT_ADDR_RESOLVED:
         cb->state = ADDR_RESOLVED;
-        ret = rdma_resolve_route(cma_id, 2000);
+        ret = rdma_resolve_route( cma_id, 2000 );
         if (ret) {
-            ERROR_LOG("rdma_resolve_route error %d\n", ret);
-            wake_up_interruptible(&cb->sem);
+            ERROR_LOG( "rdma_resolve_route error %d\n", ret );
+            wake_up_interruptible( &cb->sem );
         }
         break;
 
     case RDMA_CM_EVENT_ROUTE_RESOLVED:
         cb->state = ROUTE_RESOLVED;
-        wake_up_interruptible(&cb->sem);
+        wake_up_interruptible( &cb->sem );
         break;
 
 //*********
@@ -91,8 +91,8 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 //*********
 
     default:
-        printk(KERN_ERR PFX "oof bad type!\n");
-        wake_up_interruptible(&cb->sem);
+        ERROR_LOG( "oof bad type!\n" );
+        wake_up_interruptible( &cb->sem );
         break;
     }
     return 0;
