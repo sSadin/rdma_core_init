@@ -3,9 +3,12 @@
 //#include <rdma/ib_cm.h>
 #include <linux/inet.h>
 
+#include <linux/proc_fs.h>
+#include <linux/wait.h>         // Required for the wait queues
+#include <linux/sched.h>        // Required for task states (TASK_INTERRUPTIBLE etc ) 
+
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
-
 
 #define PORT    4444
 #define IP      "192.168.1.33"
@@ -61,6 +64,13 @@ struct cache_cb {
     struct rdma_cm_id *cm_id;       // connection on client side?
     struct rdma_cm_id *child_cm_id; // connection on server side?
 };
+
+
+static struct proc_dir_entry *krping_proc;
+
+
+//--------------------------------------------------------------------------------
+
 
 static int krping_cma_event_handler( struct rdma_cm_id *cma_id,
 				   struct rdma_cm_event *event )
@@ -232,7 +242,7 @@ static ssize_t krping_write_proc(struct file * file, const char __user * buffer,
 
     cmd = kmalloc(count, GFP_KERNEL);
     if (cmd == NULL) {
-        printk(KERN_ERR PFX "kmalloc failure\n");
+        ERROR_LOG("kmalloc failure\n");
         return -ENOMEM;
     }
     if (copy_from_user(cmd, buffer, count)) {
