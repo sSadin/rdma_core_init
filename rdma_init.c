@@ -16,7 +16,7 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define DRV KBUILD_MODNAME ": "
 #define DEBUG_LOG(...) if (debug) printk(DRV  __VA_ARGS__)
-
+#define ERROR_LOG(...) printk( KERN_ERR DRV  __VA_ARGS__)
 //------------------------------------------------------
 
 // struct ib_client ib_cache;
@@ -65,7 +65,7 @@ struct cache_cb {
 static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 				   struct rdma_cm_event *event)
 {
-printk(DRV "krping_cma_event_handler\n");
+DEBUG_LOG( "krping_cma_event_handler\n");
 return 0;
 }
 
@@ -104,7 +104,7 @@ static int krping_bind_server(struct cache_cb *cb)
     ret = rdma_bind_addr(cb->cm_id, (struct sockaddr *)&sin);
     if( ret )
     {
-        printk( KERN_ERR DRV "rdma_bind_addr error %d\n", ret );
+        ERROR_LOG( "rdma_bind_addr error %d\n", ret );
         return ret;
     }
     DEBUG_LOG("rdma_bind_addr successful\n");
@@ -113,18 +113,19 @@ static int krping_bind_server(struct cache_cb *cb)
     ret = rdma_listen( cb->cm_id, 3 );
     if( ret )
     {
-        printk( KERN_ERR DRV "rdma_listen failed: %d\n", ret );
+        ERROR_LOG( "rdma_listen failed: %d\n", ret );
         return ret;
     }
     DEBUG_LOG("rdma_listen successful\n");
 
     wait_event_interruptible(cb->sem, cb->state >= CONNECT_REQUEST);
-//     if( cb->state != CONNECT_REQUEST )
-//     {
-//         printk( KERN_ERR DRV "wait for CONNECT_REQUEST state %d\n", cb->state );
-//         return -1;
-//     }
-//
+    DEBUG_LOG("We have event!\n");
+    if( cb->state != CONNECT_REQUEST )
+    {
+        ERROR_LOG( "wait for CONNECT_REQUEST state %d\n", cb->state );
+        return -1;
+    }
+
 //     if( !reg_supported( cb->child_cm_id->device ) )
 //         return -EINVAL;
 
@@ -156,7 +157,7 @@ static int __init client_module_init(void)
 //     ret = ib_register_client( &ib_cache );
 //     if (ret)
 //     {
-//         printk( KERN_ERR "Failed to register IB client\n" );
+//         ERROR_LOG( "Failed to register IB client\n" );
 //         return ret;
 //     }
 
@@ -168,7 +169,7 @@ static int __init client_module_init(void)
     cb->cm_id = rdma_create_id(&init_net, krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
     if ( IS_ERR( cb->cm_id ) ) {
         ret = PTR_ERR( cb->cm_id );
-        printk( KERN_ERR DRV "rdma_create_id error %d\n", ret );
+        ERROR_LOG( "rdma_create_id error %d\n", ret );
         goto out;
     }
     else
@@ -192,7 +193,7 @@ static void __exit client_module_exit( void )
 //    sock_release(sock);
 //    ib_unregister_event_handler(&ieh);
 //    ib_unregister_client( &ib_cache );
-    printk( DRV "Exit client module.\n" );
+    DEBUG_LOG( "Exit client module.\n" );
 }
 
 module_init( client_module_init );
