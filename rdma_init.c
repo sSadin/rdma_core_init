@@ -1,10 +1,13 @@
 #include <linux/module.h>
-//#include <rdma/ib_verbs.h>
-//#include <rdma/ib_cm.h>
+#include <linux/kernel.h>
 #include <linux/inet.h>
 
+#include <linux/fs.h> // required for various structures related to files liked fops. 
+
 #include <rdma/ib_verbs.h>
+//#include <rdma/ib_cm.h>
 #include <rdma/rdma_cm.h>
+
 
 
 #define PORT    4444
@@ -165,8 +168,6 @@ static int krping_bind_server(struct cache_cb *cb)
 }
 
 
-
-
 static void krping_run_server(struct cache_cb *cb)
 {
     int ret;
@@ -177,8 +178,8 @@ static void krping_run_server(struct cache_cb *cb)
 }
 
 
-static int __init client_module_init(void)
-{
+int krping_doit(char *cmd)
+
     struct  cache_cb    *cb;
             int         ret             = 0;
 // Not need - we use CM
@@ -219,6 +220,42 @@ static int __init client_module_init(void)
 out:
     return ret;
 }
+
+static ssize_t krping_write_proc(struct file * file, const char __user * buffer,
+        size_t count, loff_t *ppos)
+{
+
+    return 0;
+}
+
+
+static int krping_read_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, krping_read_proc, inode->i_private);
+}
+
+
+static struct file_operations krping_ops = {
+    .owner      = THIS_MODULE,
+    .open       = krping_read_open,
+    .read       = seq_read,
+    .llseek     = seq_lseek,
+    .release    = single_release,
+    .write      = krping_write_proc,
+};
+
+
+static int __init client_module_init(void)
+{
+	DEBUG_LOG("krping_init\n");
+	krping_proc = proc_create("krping", 0666, NULL, &krping_ops);
+	if (krping_proc == NULL) {
+		ERROR_LOG("cannot create /proc/krping\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 
 static void __exit client_module_exit( void )
 {
