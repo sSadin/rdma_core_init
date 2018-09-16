@@ -251,10 +251,10 @@ static struct file_operations krping_ops = {
 
 static int __init client_module_init(void)
 {
-	DEBUG_LOG("krping_init\n");
-	krping_proc = proc_create("krping", 0666, NULL, &krping_ops);
+	DEBUG_LOG("nv_cache_init\n");
+	krping_proc = proc_create("nv_cache", 0666, NULL, &krping_ops);
 	if (krping_proc == NULL) {
-		ERROR_LOG("cannot create /proc/krping\n");
+		ERROR_LOG("cannot create /proc/nv_cache\n");
 		return -ENOMEM;
 	}
 	return 0;
