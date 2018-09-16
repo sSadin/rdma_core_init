@@ -271,22 +271,29 @@ static int krping_read_open(struct inode *inode, struct file *file)
 }
 
 
+int release(struct inode *inode, struct file *filp) {
+    DEBUG_LOG( "Release \n" );
+    cb->state = ERROR;
+    wake_up_interruptible( &cb->sem );
+    return 0;
+}
+
 static struct file_operations krping_ops = {
 	.owner     = THIS_MODULE,
 	.open      = krping_read_open,
 	.read      = seq_read,
 	.llseek    = seq_lseek,
-	.release   = single_release,
+	.release   = release;//single_release,
 	.write     = krping_write_proc,
 };
 
 
 static int __init client_module_init(void)
 {
-    DEBUG_LOG("cache_init\n");
-    krping_proc = proc_create("nvcache", 0666, NULL, &krping_ops);
+    DEBUG_LOG( "nvcache_init\n" );
+    krping_proc = proc_create( "nvcache", 0666, NULL, &krping_ops );
     if (krping_proc == NULL) {
-        printk(KERN_ERR PFX "cannot create /proc/nvcache\n");
+        ERROR_LOG( "cannot create /proc/nvcache\n" );
         return -ENOMEM;
     }
    return 0;
