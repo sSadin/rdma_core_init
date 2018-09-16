@@ -177,7 +177,7 @@ static void krping_run_server(struct cache_cb *cb)
 }
 
 
-static int __init client_module_init(void)
+int krping_doit(char *cmd)
 {
     struct  cache_cb    *cb;
             int         ret             = 0;
@@ -219,6 +219,69 @@ static int __init client_module_init(void)
 out:
     return ret;
 }
+
+
+static ssize_t krping_write_proc(struct file * file, const char __user * buffer,
+        size_t count, loff_t *ppos)
+{
+    char *cmd;
+    int rc = 0;
+
+    if (!try_module_get(THIS_MODULE))
+        return -ENODEV;
+
+    cmd = kmalloc(count, GFP_KERNEL);
+    if (cmd == NULL) {
+        printk(KERN_ERR PFX "kmalloc failure\n");
+        return -ENOMEM;
+    }
+    if (copy_from_user(cmd, buffer, count)) {
+        kfree(cmd);
+        return -EFAULT;
+    }
+
+    /*
+    * remove the \n.
+    */
+    cmd[count - 1] = 0;
+    DEBUG_LOG("proc write |%s|\n", cmd);
+    rc = krping_doit(cmd);
+    kfree(cmd);
+    module_put(THIS_MODULE);
+    if (rc)
+        return rc;
+    else
+        return (int) count;
+}
+
+
+static int krping_read_open(struct inode *inode, struct file *file)
+{
+            return 0;
+}
+
+
+static struct file_operations krping_ops = {
+	.owner     = THIS_MODULE,
+	.open      = krping_read_open,
+	.read      = seq_read,
+	.llseek    = seq_lseek,
+	.release   = single_release,
+	.write     = krping_write_proc,
+};
+
+
+static int __init client_module_init(void)
+{
+    DEBUG_LOG("cache_init\n");
+    krping_proc = proc_create("nvcache", 0666, NULL, &krping_ops);
+    if (krping_proc == NULL) {
+        printk(KERN_ERR PFX "cannot create /proc/nvcache\n");
+        return -ENOMEM;
+    }
+   return 0;
+}
+
 
 static void __exit client_module_exit( void )
 {
