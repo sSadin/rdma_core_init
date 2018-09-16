@@ -3,6 +3,7 @@
 #include <linux/inet.h>
 
 #include <linux/fs.h> // required for various structures related to files liked fops. 
+#include <linux/proc_fs.h>
 
 #include <rdma/ib_verbs.h>
 //#include <rdma/ib_cm.h>
@@ -31,6 +32,9 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 //------------------------------------------------------
+
+
+static struct proc_dir_entry *krping_proc;
 
 
 enum test_state {
@@ -179,9 +183,9 @@ static void krping_run_server(struct cache_cb *cb)
 
 
 int krping_doit(char *cmd)
-
+{
     struct  cache_cb    *cb;
-            int         ret             = 0;
+            int         ret = 0;
 // Not need - we use CM
 //                         devices         = 0;
 //                         ib_cache.name   = "DISAG_MEM";
@@ -231,7 +235,7 @@ static ssize_t krping_write_proc(struct file * file, const char __user * buffer,
 
 static int krping_read_open(struct inode *inode, struct file *file)
 {
-    return single_open(file, krping_read_proc, inode->i_private);
+    return 0;//single_open(file, krping_read_proc, inode->i_private);
 }
 
 
