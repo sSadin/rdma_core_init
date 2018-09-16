@@ -273,18 +273,19 @@ static int krping_read_open(struct inode *inode, struct file *file)
 
 int release(struct inode *inode, struct file *filp) {
     DEBUG_LOG( "Release \n" );
-    cb->state = ERROR;
-    wake_up_interruptible( &cb->sem );
+//     cb->state = ERROR;
+//     wake_up_interruptible( &cb->sem );
     return 0;
 }
 
+
 static struct file_operations krping_ops = {
-	.owner     = THIS_MODULE,
-	.open      = krping_read_open,
-	.read      = seq_read,
-	.llseek    = seq_lseek,
-	.release   = release;//single_release,
-	.write     = krping_write_proc,
+    .owner     = THIS_MODULE,
+    .open      = krping_read_open,
+    .read      = seq_read,
+    .llseek    = seq_lseek,
+    .release   = single_release,//release,//
+    .write     = krping_write_proc,
 };
 
 
