@@ -14,8 +14,8 @@
 static int debug = 1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
-#define DEBUG_LOG if (debug) printk
 #define DRV KBUILD_MODNAME ": "
+#define DEBUG_LOG(...) if (debug) printk(DRV  __VA_ARGS__)
 
 //------------------------------------------------------
 
@@ -93,11 +93,9 @@ static int krping_bind_server(struct cache_cb *cb)
     struct  sockaddr_storage sin;
     struct  sockaddr_in      *sin4   = (struct sockaddr_in *)&sin;
             int              ret     = 0;
-            char             *ip_str = IP
-            uint16_t         port    = PORT;
 
-    in4_pton( ip_str, -1, cb->addr, -1, NULL );
-    cb->port = htons( port );
+    in4_pton( IP, -1, cb->addr, -1, NULL );
+    cb->port = htons( PORT );
 
     sin4->sin_family = AF_INET;
     memcpy((void *)&sin4->sin_addr.s_addr, cb->addr, 4);
