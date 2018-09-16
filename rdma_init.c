@@ -76,8 +76,7 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
         cb->state = ADDR_RESOLVED;
         ret = rdma_resolve_route(cma_id, 2000);
         if (ret) {
-            printk(KERN_ERR PFX "rdma_resolve_route error %d\n", 
-                ret);
+            ERROR_LOG("rdma_resolve_route error %d\n", ret);
             wake_up_interruptible(&cb->sem);
         }
         break;
