@@ -117,7 +117,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 {
     struct cache_cb *cb = ctx;
     struct ib_wc wc;
-    struct ib_recv_wr *bad_wr;
+//     struct ib_recv_wr *bad_wr;
     int ret;
 
     BUG_ON(cb->cq != cq);
@@ -207,6 +207,52 @@ error:
 }
 
 
+static int krping_create_qp(struct cache_cb *cb)
+{
+    struct ib_qp_init_attr init_attr;
+    int ret;
+
+    memset(&init_attr, 0, sizeof(init_attr));
+    init_attr.cap.max_send_wr = 64/*cb->txdepth*/;
+    init_attr.cap.max_recv_wr = 2;
+    
+    /* For flush_qp() */
+    init_attr.cap.max_send_wr++;
+    init_attr.cap.max_recv_wr++;
+
+    init_attr.cap.max_recv_sge = 1;
+    init_attr.cap.max_send_sge = 1;
+    init_attr.qp_type = IB_QPT_RC;
+    init_attr.send_cq = cb->cq;
+    init_attr.recv_cq = cb->cq;
+    init_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
+
+#if defined(SERVER)//    if (cb->server)
+    {
+        ret = rdma_create_qp(cb->child_cm_id, cb->pd, &init_attr);
+        if (!ret)
+            cb->qp = cb->child_cm_id->qp;
+    } 
+#elif defined(CLIENT)//    else
+    {
+        ret = rdma_create_qp(cb->cm_id, cb->pd, &init_attr);
+        if (!ret)
+            cb->qp = cb->cm_id->qp;
+    }
+#else
+#error SERVER or CLIENT must be defined!
+#endif
+
+    return ret;
+}
+
+static void krping_free_qp(struct cache_cb *cb)
+{
+    ib_destroy_qp(cb->qp);
+    ib_destroy_cq(cb->cq);
+    ib_dealloc_pd(cb->pd);
+}
+
 static int krping_setup_qp(struct cache_cb *cb, struct rdma_cm_id *cm_id)
 {
     int ret;
@@ -239,19 +285,18 @@ static int krping_setup_qp(struct cache_cb *cb, struct rdma_cm_id *cm_id)
         }
     }
 
-#if 0
     ret = krping_create_qp(cb);
     if (ret) {
         ERROR_LOG( "krping_create_qp failed: %d\n", ret);
         goto err2;
     }
     DEBUG_LOG("created qp %p\n", cb->qp);
-#else
-    DEBUG_LOG("this we must created qp\n");
-#endif
+
     return 0;
+
 err2:
     ib_destroy_cq(cb->cq);
+
 err1:
     ib_dealloc_pd(cb->pd);
     return ret;
@@ -373,6 +418,10 @@ static void krping_run_client(struct cache_cb *cb)
         ERROR_LOG( "setup_qp failed: %d\n", ret );
         return;
     }
+    goto err1;
+
+err1:
+    krping_free_qp(cb);
 }
 
 static int __init client_module_init(void)
