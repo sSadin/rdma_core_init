@@ -105,10 +105,9 @@ static int krping_cma_event_handler( struct rdma_cm_id *cma_id,
         wake_up_interruptible( &cb->sem );
         break;
     }
-    return 0;
 
-DEBUG_LOG( "krping_cma_event_handler\n");
-return 0;
+    DEBUG_LOG( "krping_cma_event_handler exit\n");
+    return 0;
 }
 
 
@@ -302,11 +301,12 @@ err1:
     return ret;
 }
 
-static int krping_bind_server(struct cache_cb *cb)
+
+static void fill_sockaddr(struct sockaddr_storage *sin, struct cache_cb *cb)
 {
-    struct  sockaddr_storage sin;
-    struct  sockaddr_in      *sin4   = (struct sockaddr_in *)&sin;
-            int              ret     = 0;
+    struct sockaddr_in *sin4 = (struct sockaddr_in *)sin;
+
+    memset(sin, 0, sizeof(*sin));
 
     in4_pton( IP, -1, cb->addr, -1, NULL );
     cb->port = htons( PORT );
@@ -314,7 +314,16 @@ static int krping_bind_server(struct cache_cb *cb)
     sin4->sin_family = AF_INET;
     memcpy((void *)&sin4->sin_addr.s_addr, cb->addr, 4);
     sin4->sin_port = cb->port;
+}
 
+
+static int krping_bind_server(struct cache_cb *cb)
+{
+    struct  sockaddr_storage sin;
+            int              ret     = 0;
+
+    fill_sockaddr(&sin, cb);
+    
     ret = rdma_bind_addr(cb->cm_id, (struct sockaddr *)&sin);
     if( ret )
     {
@@ -365,15 +374,10 @@ static void krping_run_server(struct cache_cb *cb)
 static int krping_bind_client(struct cache_cb *cb)
 {
     struct  sockaddr_storage sin;
-    struct  sockaddr_in      *sin4   = (struct sockaddr_in *)&sin;
             int              ret     = 0;
 
-    in4_pton( IP, -1, cb->addr, -1, NULL );
-    cb->port = htons( PORT );
+    fill_sockaddr(&sin, cb);
 
-    sin4->sin_family = AF_INET;
-    memcpy((void *)&sin4->sin_addr.s_addr, cb->addr, 4);
-    sin4->sin_port = cb->port;
 
     ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *)&sin, 2000);
     if (ret) {
