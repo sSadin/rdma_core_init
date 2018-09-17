@@ -342,7 +342,6 @@ static int krping_bind_server(struct cache_cb *cb)
     DEBUG_LOG("rdma_listen successful\n");
 
     wait_event_interruptible(cb->sem, cb->state >= CONNECT_REQUEST);
-    DEBUG_LOG("We have event!\n");
     if( cb->state != CONNECT_REQUEST )
     {
         ERROR_LOG( "wait for CONNECT_REQUEST state %d\n", cb->state );
