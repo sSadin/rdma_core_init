@@ -6,9 +6,15 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
-
-#define PORT    4444
-#define IP      "192.168.1.33"
+#if defined(SERVER)
+#  define IP      "192.168.1.34"
+#  define PORT    4444
+#elif defined(CLIENT)
+#  define IP      "192.168.1.33"
+#  define PORT    4444
+#else
+#error SERVER or CLIENT must be defined!
+#endif
 
 
 static int debug = 1;
@@ -173,9 +179,64 @@ static void krping_run_server(struct cache_cb *cb)
 
     ret = krping_bind_server(cb);
     if (ret)
-       return;
+    {
+        ERROR_LOG( "ERROR BIND SERVER\n" );
+        return;
+    }
 }
 
+
+static int krping_bind_client(struct cache_cb *cb)
+{
+    struct  sockaddr_storage sin;
+    struct  sockaddr_in      *sin4   = (struct sockaddr_in *)&sin;
+            int              ret     = 0;
+
+    in4_pton( IP, -1, cb->addr, -1, NULL );
+    cb->port = htons( PORT );
+
+    sin4->sin_family = AF_INET;
+    memcpy((void *)&sin4->sin_addr.s_addr, cb->addr, 4);
+    sin4->sin_port = cb->port;
+
+    ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *)&sin, 2000);
+    if (ret) {
+        ERROR_LOG( "rdma_resolve_addr error %d\n", ret);
+        return ret;
+    }
+
+    wait_event_interruptible(cb->sem, cb->state >= ROUTE_RESOLVED);
+    if (cb->state != ROUTE_RESOLVED) {
+        ERROR_LOG( "addr/route resolution did not resolve: state %d\n", cb->state );
+        return -EINTR;
+    }
+
+//     if (!reg_supported(cb->cm_id->device))
+//         return -EINVAL;
+
+    DEBUG_LOG("rdma_resolve_addr - rdma_resolve_route successful\n");
+    return 0;
+
+}
+
+
+static void krping_run_client(struct cache_cb *cb)
+{
+//    struct ib_recv_wr *bad_wr;
+    int ret;
+
+    /* set type of service, if any
+    if (cb->tos != 0)
+        rdma_set_service_type(cb->cm_id, cb->tos);
+    */
+
+    ret = krping_bind_client(cb);
+    if (ret)
+    {
+        ERROR_LOG( "ERROR BIND SERVER\n" );
+        return;
+    }
+}
 
 static int __init client_module_init(void)
 {
@@ -206,10 +267,15 @@ static int __init client_module_init(void)
     }
     else
         DEBUG_LOG("created cm_id %p\n", cb->cm_id );
+#if defined(SERVER)
     //if (cb->server)
         krping_run_server(cb);
+#elif defined(CLIENT)
     //else
-    //    krping_run_client(cb);
+        krping_run_client(cb);
+#else
+#error SERVER or CLIENT must be defined!
+#endif
 
 
     DEBUG_LOG("RDMA destroy ID\n");

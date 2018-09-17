@@ -41,6 +41,7 @@ default:
 	-cp -f $(OFA)/Module*.symvers $(TEST_SRC)/Module.symvers
 	make -C $(KSRC) O=$(KOBJ) SUBDIRS=$(shell pwd) \
 		LINUXINCLUDE=' \
+		-DCLIENT \
 		-D__OFED_BUILD__ \
 		$(EXTRA_CFLAGS) \
 		-include $(autoconf_h) \
