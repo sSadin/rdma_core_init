@@ -61,6 +61,10 @@ struct cache_cb {
     uint16_t port;
     char addr[4];
 
+	struct ib_cq *cq;
+	struct ib_pd *pd;
+	struct ib_qp *qp;
+
     enum test_state state;           // used for cond/signalling
     wait_queue_head_t sem;
 
@@ -108,23 +112,150 @@ return 0;
 }
 
 
-// void add_device( struct ib_device* dev )
-// {
-//     int i;
-//     m_devs[ devices++ ] = dev;
-//     if( devices > MAX_DEV )
-//         --devices;
-//     for( i = 0; i < devices; ++i )
-//         printk( DRV "We got a new device! The devece name is: %s\n", m_devs[i]->name );
-// 
-// }
+
+static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
+{
+    struct cache_cb *cb = ctx;
+    struct ib_wc wc;
+    struct ib_recv_wr *bad_wr;
+    int ret;
+
+    BUG_ON(cb->cq != cq);
+    if (cb->state == ERROR) {
+        ERROR_LOG( "cq completion in ERROR state\n");
+        return;
+    }
+
+//     if (!cb->wlat && !cb->rlat && !cb->bw)
+        ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
+    while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) {
+        if (wc.status) {
+            if (wc.status == IB_WC_WR_FLUSH_ERR) {
+                DEBUG_LOG("cq flushed\n");
+                continue;
+            } else {
+                ERROR_LOG( "cq completion failed with "
+                    "wr_id %Lx status %d opcode %d vender_err %x\n",
+                    wc.wr_id, wc.status, wc.opcode, wc.vendor_err);
+                goto error;
+            }
+        }
+
+        switch (wc.opcode) {
+        case IB_WC_SEND:
+            DEBUG_LOG("send completion\n");
+//             cb->stats.send_bytes += cb->send_sgl.length;
+//             cb->stats.send_msgs++;
+            break;
+
+        case IB_WC_RDMA_WRITE:
+            DEBUG_LOG("rdma write completion\n");
+//             cb->stats.write_bytes += cb->rdma_sq_wr.wr.sg_list->length;
+//             cb->stats.write_msgs++;
+            cb->state = RDMA_WRITE_COMPLETE;
+            wake_up_interruptible(&cb->sem);
+            break;
+
+        case IB_WC_RDMA_READ:
+            DEBUG_LOG("rdma read completion\n");
+//             cb->stats.read_bytes += cb->rdma_sq_wr.wr.sg_list->length;
+//             cb->stats.read_msgs++;
+            cb->state = RDMA_READ_COMPLETE;
+            wake_up_interruptible(&cb->sem);
+            break;
+
+        case IB_WC_RECV:
+            DEBUG_LOG("recv completion\n");
+//             cb->stats.recv_bytes += sizeof(cb->recv_buf);
+//             cb->stats.recv_msgs++;
+#if 0
+            if (cb->wlat || cb->rlat || cb->bw)
+                ret = server_recv(cb, &wc);
+            else
+                ret = cb->server ? server_recv(cb, &wc) :
+                        client_recv(cb, &wc);
+            if (ret) {
+                ERROR_LOG( "recv wc error: %d\n", ret);
+                goto error;
+            }
+
+            ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
+            if (ret) {
+                ERROR_LOG( "post recv error: %d\n", 
+                    ret);
+                goto error;
+            }
+#endif
+            wake_up_interruptible(&cb->sem);
+            break;
+
+        default:
+            ERROR_LOG(
+                "%s:%d Unexpected opcode %d, Shutting down\n",
+                __func__, __LINE__, wc.opcode);
+            goto error;
+        }
+    }
+    if (ret) {
+        ERROR_LOG( "poll error %d\n", ret);
+        goto error;
+    }
+    return;
+error:
+    cb->state = ERROR;
+    wake_up_interruptible(&cb->sem);
+}
 
 
-// void remove_device( struct ib_device* dev, void *ctx )
-// {
-//     printk( DRV "remove_device\n" );
-// }
+static int krping_setup_qp(struct cache_cb *cb, struct rdma_cm_id *cm_id)
+{
+    int ret;
+    struct ib_cq_init_attr attr = {0};
 
+    cb->pd = ib_alloc_pd(cm_id->device, 0);
+    if (IS_ERR(cb->pd)) {
+        ERROR_LOG( "ib_alloc_pd failed\n");
+        return PTR_ERR(cb->pd);
+    }
+    DEBUG_LOG("created pd %p\n", cb->pd);
+
+    attr.cqe = 64/*cb->txdepth*/ * 2;
+    attr.comp_vector = 0;
+    cb->cq = ib_create_cq(cm_id->device, krping_cq_event_handler, NULL,
+                cb, &attr);
+    if (IS_ERR(cb->cq)) {
+        ERROR_LOG( "ib_create_cq failed\n");
+        ret = PTR_ERR(cb->cq);
+        goto err1;
+    }
+    DEBUG_LOG("created cq %p\n", cb->cq);
+
+//     if (!cb->wlat && !cb->rlat && !cb->bw && !cb->frtest)
+    {
+        ret = ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
+        if (ret) {
+            ERROR_LOG( "ib_create_cq failed\n");
+            goto err2;
+        }
+    }
+
+#if 0
+    ret = krping_create_qp(cb);
+    if (ret) {
+        ERROR_LOG( "krping_create_qp failed: %d\n", ret);
+        goto err2;
+    }
+    DEBUG_LOG("created qp %p\n", cb->qp);
+#else
+    DEBUG_LOG("this we must created qp\n");
+#endif
+    return 0;
+err2:
+    ib_destroy_cq(cb->cq);
+err1:
+    ib_dealloc_pd(cb->pd);
+    return ret;
+}
 
 static int krping_bind_server(struct cache_cb *cb)
 {
@@ -236,6 +367,12 @@ static void krping_run_client(struct cache_cb *cb)
         ERROR_LOG( "ERROR BIND SERVER\n" );
         return;
     }
+    ret = krping_setup_qp(cb, cb->cm_id);
+    if (ret)
+    {
+        ERROR_LOG( "setup_qp failed: %d\n", ret );
+        return;
+    }
 }
 
 static int __init client_module_init(void)
@@ -285,6 +422,24 @@ static int __init client_module_init(void)
 out:
     return ret;
 }
+
+
+// void add_device( struct ib_device* dev )
+// {
+//     int i;
+//     m_devs[ devices++ ] = dev;
+//     if( devices > MAX_DEV )
+//         --devices;
+//     for( i = 0; i < devices; ++i )
+//         printk( DRV "We got a new device! The devece name is: %s\n", m_devs[i]->name );
+// 
+// }
+
+
+// void remove_device( struct ib_device* dev, void *ctx )
+// {
+//     printk( DRV "remove_device\n" );
+// }
 
 static void __exit client_module_exit( void )
 {
